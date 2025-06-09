@@ -1,13 +1,15 @@
 package utils
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"net"
 	"strconv"
 	"strings"
 
 	"github.com/dicedb/dicedb-go/wire"
-	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // parseHostAndPort splits a URL string in format "host:port" and returns the host and port
@@ -35,66 +37,132 @@ func parseHostAndPort(url string) (string, int) {
 }
 
 // FormatDiceDBResponse formats the DiceDB response
-func FormatDiceDBResponse(resp *wire.Response) string {
-	if resp.Err != "" {
-		return fmt.Sprintf("Error: %s", resp.Err)
+func FormatDiceDBResponse(resp *wire.Result) string {
+	if resp.Status == wire.Status_ERR {
+		return fmt.Sprintf("%s %s\n", ("ERR"), resp.Message)
 	}
 
 	var result strings.Builder
 
-	// Copied from: https://github.com/DiceDB/dicedb-cli/blob/1c61ed7ec2a24f1483a59965df73450d575bbab6/ironhawk/main.go#L136
-	// Handle attributes if present
-	if len(resp.Attrs.AsMap()) > 0 {
-		attrs := []string{}
-		for k, v := range resp.Attrs.AsMap() {
-			attrs = append(attrs, fmt.Sprintf("%s=%s", k, v))
-		}
-		result.WriteString(fmt.Sprintf("[%s] ", strings.Join(attrs, ", ")))
+	// Copied from: https://github.com/DiceDB/dicedb-cli/blob/ironhawk/main.go#L136
+	result.WriteString(resp.Message)
+	if resp.Fingerprint64 != 0 {
+		result.WriteString(fmt.Sprintf("[fingerprint=%d] ", resp.Fingerprint64))
 	}
 
-	// Handle string-string map if present
-	if len(resp.VSsMap) > 0 {
-		if result.Len() > 0 {
-			result.WriteString("\n")
+	switch resp.Response.(type) {
+	case *wire.Result_GETRes:
+		result.WriteString((fmt.Sprintf("\"%s\"\n", resp.GetGETRes().Value)))
+	case *wire.Result_GETDELRes:
+		result.WriteString(fmt.Sprintf("\"%s\"\n", resp.GetGETDELRes().Value))
+	case *wire.Result_SETRes:
+		result.WriteString("\n")
+	case *wire.Result_FLUSHDBRes:
+		result.WriteString("\n")
+	case *wire.Result_DELRes:
+		result.WriteString(fmt.Sprintf("%d\n", resp.GetDELRes().Count))
+	case *wire.Result_DECRRes:
+		result.WriteString(fmt.Sprintf("%d\n", resp.GetDECRRes().Value))
+	case *wire.Result_INCRRes:
+		result.WriteString(fmt.Sprintf("%d\n", resp.GetINCRRes().Value))
+	case *wire.Result_DECRBYRes:
+		result.WriteString(fmt.Sprintf("%d\n", resp.GetDECRBYRes().Value))
+	case *wire.Result_INCRBYRes:
+		result.WriteString(fmt.Sprintf("%d\n", resp.GetINCRBYRes().Value))
+	case *wire.Result_ECHORes:
+		result.WriteString(fmt.Sprintf("%s\n", resp.GetECHORes().Message))
+	case *wire.Result_EXISTSRes:
+		result.WriteString(fmt.Sprintf("%d\n", resp.GetEXISTSRes().Count))
+	case *wire.Result_EXPIRERes:
+		result.WriteString(fmt.Sprintf("%v\n", resp.GetEXPIRERes().IsChanged))
+	case *wire.Result_EXPIREATRes:
+		result.WriteString(fmt.Sprintf("%v\n", resp.GetEXPIREATRes().IsChanged))
+	case *wire.Result_EXPIRETIMERes:
+		result.WriteString(fmt.Sprintf("%d\n", resp.GetEXPIRETIMERes().UnixSec))
+	case *wire.Result_TTLRes:
+		result.WriteString(fmt.Sprintf("%d\n", resp.GetTTLRes().Seconds))
+	case *wire.Result_GETEXRes:
+		result.WriteString(fmt.Sprintf("\"%s\"\n", resp.GetGETEXRes().Value))
+	case *wire.Result_GETSETRes:
+		result.WriteString(fmt.Sprintf("\"%s\"\n", resp.GetGETSETRes().Value))
+	case *wire.Result_HANDSHAKERes:
+		result.WriteString("\n")
+	case *wire.Result_HGETRes:
+		result.WriteString(fmt.Sprintf("\"%s\"\n", resp.GetHGETRes().Value))
+	case *wire.Result_HSETRes:
+		result.WriteString(fmt.Sprintf("%d\n", resp.GetHSETRes().Count))
+	case *wire.Result_HGETALLRes:
+		result.WriteString("\n")
+		for i, e := range resp.GetHGETALLRes().Elements {
+			result.WriteString(fmt.Sprintf("%d) %s=\"%s\"\n", i, e.Key, e.Value))
 		}
-		for k, v := range resp.VSsMap {
-			result.WriteString(fmt.Sprintf("%s=%s\n", k, v))
+	case *wire.Result_KEYSRes:
+		result.WriteString("\n")
+		for i, key := range resp.GetKEYSRes().Keys {
+			result.WriteString(fmt.Sprintf("%d) %s\n", i, key))
 		}
-	}
+	case *wire.Result_PINGRes:
+		result.WriteString(fmt.Sprintf("\"%s\"\n", resp.GetPINGRes().Message))
+	case *wire.Result_TYPERes:
+		result.WriteString(fmt.Sprintf("%s\n", resp.GetTYPERes().Type))
+	case *wire.Result_ZADDRes:
+		result.WriteString(fmt.Sprintf("%d\n", resp.GetZADDRes().Count))
+	case *wire.Result_ZCOUNTRes:
+		result.WriteString(fmt.Sprintf("%d\n", resp.GetZCOUNTRes().Count))
+	case *wire.Result_ZRANGERes:
+		result.WriteString("\n")
+		for _, e := range resp.GetZRANGERes().Elements {
+			printZElement(e)
+		}
+	case *wire.Result_ZPOPMAXRes:
+		result.WriteString("\n")
+		for _, e := range resp.GetZPOPMAXRes().Elements {
+			printZElement(e)
+		}
+	case *wire.Result_ZPOPMINRes:
+		result.WriteString("\n")
+		for _, e := range resp.GetZPOPMINRes().Elements {
+			printZElement(e)
+		}
+	case *wire.Result_ZREMRes:
+		result.WriteString(fmt.Sprintf("%d\n", resp.GetZREMRes().Count))
+	case *wire.Result_ZCARDRes:
+		result.WriteString(fmt.Sprintf("%d\n", resp.GetZCARDRes().Count))
+	case *wire.Result_ZRANKRes:
+		printZElement(resp.GetZRANKRes().Element)
+	case *wire.Result_GETWATCHRes:
+		result.WriteString("\n")
+	case *wire.Result_HGETWATCHRes:
+		result.WriteString("\n")
+	case *wire.Result_HGETALLWATCHRes:
+		result.WriteString("\n")
+	case *wire.Result_ZRANGEWATCHRes:
+		result.WriteString("\n")
+	case *wire.Result_ZCARDWATCHRes:
+		result.WriteString("\n")
+	case *wire.Result_ZCOUNTWATCHRes:
+		result.WriteString("\n")
+	case *wire.Result_ZRANKWATCHRes:
+		result.WriteString("\n")
+	case *wire.Result_UNWATCHRes:
+		result.WriteString("\n")
+	default:
+		fmt.Println("note: this response is JSON serialized version of the response because it is not supported by this version of the CLI. You can upgrade the CLI to the latest version to get a formatted response.")
+		b, err := protojson.Marshal(resp)
+		if err != nil {
+			log.Fatalf("failed to marshal to JSON: %v", err)
+		}
 
-	// Handle the primary value based on its type
-	switch resp.Value.(type) {
-	case *wire.Response_VStr:
-		result.WriteString(resp.GetVStr())
-	case *wire.Response_VInt:
-		result.WriteString(fmt.Sprintf("%d", resp.GetVInt()))
-	case *wire.Response_VFloat:
-		result.WriteString(fmt.Sprintf("%f", resp.GetVFloat()))
-	case *wire.Response_VBytes:
-		result.WriteString(fmt.Sprintf("%s", resp.GetVBytes()))
-	case *wire.Response_VNil:
-		result.WriteString("(nil)")
-	}
+		var m map[string]interface{}
+		_ = json.Unmarshal(b, &m)
 
-	// Handle list values if present
-	if len(resp.GetVList()) > 0 {
-		if result.Len() > 0 {
-			result.WriteString("\n")
-		}
-
-		for i, v := range resp.GetVList() {
-			switch v.GetKind().(type) {
-			case *structpb.Value_NullValue:
-				result.WriteString(fmt.Sprintf("%d) (nil)\n", i+1))
-			case *structpb.Value_NumberValue:
-				result.WriteString(fmt.Sprintf("%d) %f\n", i+1, v.GetNumberValue()))
-			case *structpb.Value_StringValue:
-				result.WriteString(fmt.Sprintf("%d) \"%s\"\n", i+1, v.GetStringValue()))
-			case *structpb.Value_BoolValue:
-				result.WriteString(fmt.Sprintf("%d) %t\n", i+1, v.GetBoolValue()))
-			}
-		}
+		nb, _ := json.MarshalIndent(m, "", "  ")
+		result.WriteString((fmt.Sprintf("%s", string(nb))))
 	}
 
 	return strings.TrimSpace(result.String())
+}
+
+func printZElement(e *wire.ZElement) string {
+	return fmt.Sprintf("%d) %d, %s\n", e.Rank, e.Score, e.Member)
 }

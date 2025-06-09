@@ -26,11 +26,11 @@ func NewHGetTool() mcp.Tool {
 }
 
 func HandleHGetTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	key, ok := request.Params.Arguments["key"].(string)
+	key, ok := request.GetArguments()["key"].(string)
 	if !ok || key == "" {
 		return nil, fmt.Errorf("missing or empty key parameter")
 	}
-	field, ok := request.Params.Arguments["field"].(string)
+	field, ok := request.GetArguments()["field"].(string)
 	if !ok || field == "" {
 		return nil, fmt.Errorf("missing or empty field parameter")
 	}
@@ -45,8 +45,8 @@ func HandleHGetTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 		Args: []string{key, field},
 	})
 
-	if resp.Err != "" {
-		return nil, fmt.Errorf("DiceDB error: %s", resp.Err)
+	if resp.Status == wire.Status_ERR {
+		return nil, fmt.Errorf("DiceDB error: %s", resp.Message)
 	}
 
 	value := utils.FormatDiceDBResponse(resp)

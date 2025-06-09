@@ -3,7 +3,7 @@ package tools
 import (
 	"context"
 	"fmt"
-	"strconv"
+	"strings"
 
 	"github.com/pottekkat/dicedb-mcp/internal/utils"
 
@@ -20,6 +20,7 @@ func NewHSetTool() mcp.Tool {
 			mcp.Description("The key holding string-string map"),
 		),
 		mcp.WithArray("pairs",
+			mcp.Items(map[string]any{"type": "string"}),
 			mcp.Required(),
 			mcp.Description("The string string map to set in DiceDB"),
 		),
@@ -27,12 +28,18 @@ func NewHSetTool() mcp.Tool {
 }
 
 func HandleHSetTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	key, ok := request.Params.Arguments["key"].(string)
+	key, ok := request.GetArguments()["key"].(string)
 	if !ok || key == "" {
 		return nil, fmt.Errorf("missing or empty key parameter")
 	}
 
-	kvs, ok := request.Params.Arguments["pairs"].([]string)
+	kvs, ok := request.GetArguments()["pairs"].([]any)
+
+	// Convert the keys to strings
+	stringKvs := make([]string, len(kvs))
+	for i, key := range kvs {
+		stringKvs[i] = fmt.Sprintf("%v", key)
+	}
 	if len(kvs) == 0 || (len(kvs)&1) == 1 || !ok {
 		return nil, fmt.Errorf("missing or empty pairs parameter")
 	}
@@ -44,20 +51,20 @@ func HandleHSetTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 
 	resp := client.Fire(&wire.Command{
 		Cmd:  "HSET",
-		Args: append([]string{key}, kvs...),
+		Args: append([]string{key}, stringKvs...),
 	})
 
-	if resp.Err != "" {
-		return nil, fmt.Errorf("DiceDB error: %s", resp.Err)
+	if resp.Status == wire.Status_ERR {
+		return nil, fmt.Errorf("DiceDB error: %s", resp.Message)
 	}
 
 	value := utils.FormatDiceDBResponse(resp)
 
 	var resultMessage string
-	if value == strconv.Itoa(len(kvs)/2) {
+	if strings.HasPrefix(value, "OK") {
 		resultMessage = fmt.Sprintf("Key '%s' is set to string-string map '%v'", key, kvs)
 	} else {
-		resultMessage = fmt.Sprintf("Key '%s' was not set (condition not met)", key)
+		resultMessage = fmt.Sprintf("Key '%s' was not set", key)
 	}
 
 	return mcp.NewToolResultText(resultMessage), nil
