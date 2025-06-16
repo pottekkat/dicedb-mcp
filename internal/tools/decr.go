@@ -23,7 +23,7 @@ func NewDecrTool() mcp.Tool {
 
 // HandleDecrTool handles the DECR tool request
 func HandleDecrTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	key, ok := request.Params.Arguments["key"].(string)
+	key, ok := request.GetArguments()["key"].(string)
 	if !ok || key == "" {
 		return nil, fmt.Errorf("missing or empty key parameter")
 	}
@@ -38,8 +38,8 @@ func HandleDecrTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 		Args: []string{key},
 	})
 
-	if resp.Err != "" {
-		return nil, fmt.Errorf("DiceDB error: %s", resp.Err)
+	if resp.Status == wire.Status_ERR {
+		return nil, fmt.Errorf("DiceDB error: %s", resp.Message)
 	}
 
 	value := utils.FormatDiceDBResponse(resp)

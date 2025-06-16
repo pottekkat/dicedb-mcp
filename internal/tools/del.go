@@ -25,7 +25,7 @@ func NewDelTool() mcp.Tool {
 
 // HandleDelTool handles the DEL tool request
 func HandleDelTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	keys, ok := request.Params.Arguments["keys"].([]any)
+	keys, ok := request.GetArguments()["keys"].([]any)
 	if !ok || len(keys) == 0 {
 		return nil, fmt.Errorf("missing or empty keys parameter")
 	}
@@ -46,8 +46,8 @@ func HandleDelTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallT
 		Args: stringKeys,
 	})
 
-	if resp.Err != "" {
-		return nil, fmt.Errorf("DiceDB error: %s", resp.Err)
+	if resp.Status == wire.Status_ERR {
+		return nil, fmt.Errorf("DiceDB error: %s", resp.Message)
 	}
 
 	value := utils.FormatDiceDBResponse(resp)

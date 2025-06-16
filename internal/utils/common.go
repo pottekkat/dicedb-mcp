@@ -20,7 +20,7 @@ func CommonURLParam() mcp.ToolOption {
 func GetClientFromRequest(request mcp.CallToolRequest) (*dicedb.Client, error) {
 	// Get the URL with fallback to default
 	var url string = "localhost:7379"
-	if urlArg, ok := request.Params.Arguments["url"]; ok && urlArg != nil {
+	if urlArg, ok := request.GetArguments()["url"]; ok && urlArg != nil {
 		if urlStr, ok := urlArg.(string); ok && urlStr != "" {
 			url = urlStr
 		}

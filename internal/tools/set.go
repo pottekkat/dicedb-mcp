@@ -52,47 +52,47 @@ func NewSetTool() mcp.Tool {
 
 // HandleSetTool handles the SET tool request
 func HandleSetTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	key, ok := request.Params.Arguments["key"].(string)
+	key, ok := request.GetArguments()["key"].(string)
 	if !ok || key == "" {
 		return nil, fmt.Errorf("missing or empty key parameter")
 	}
 
-	value, ok := request.Params.Arguments["value"].(string)
+	value, ok := request.GetArguments()["value"].(string)
 	if !ok {
 		return nil, fmt.Errorf("missing value parameter")
 	}
 
 	args := []string{key, value}
 
-	if ex, ok := request.Params.Arguments["ex"].(float64); ok {
+	if ex, ok := request.GetArguments()["ex"].(float64); ok {
 		args = append(args, "EX", strconv.FormatInt(int64(ex), 10))
 	}
 
-	if px, ok := request.Params.Arguments["px"].(float64); ok {
+	if px, ok := request.GetArguments()["px"].(float64); ok {
 		args = append(args, "PX", strconv.FormatInt(int64(px), 10))
 	}
 
-	if exat, ok := request.Params.Arguments["exat"].(float64); ok {
+	if exat, ok := request.GetArguments()["exat"].(float64); ok {
 		args = append(args, "EXAT", strconv.FormatInt(int64(exat), 10))
 	}
 
-	if pxat, ok := request.Params.Arguments["pxat"].(float64); ok {
+	if pxat, ok := request.GetArguments()["pxat"].(float64); ok {
 		args = append(args, "PXAT", strconv.FormatInt(int64(pxat), 10))
 	}
 
-	if xx, ok := request.Params.Arguments["xx"].(bool); ok && xx {
+	if xx, ok := request.GetArguments()["xx"].(bool); ok && xx {
 		args = append(args, "XX")
 	}
 
-	if nx, ok := request.Params.Arguments["nx"].(bool); ok && nx {
+	if nx, ok := request.GetArguments()["nx"].(bool); ok && nx {
 		args = append(args, "NX")
 	}
 
-	if keepttl, ok := request.Params.Arguments["keepttl"].(bool); ok && keepttl {
+	if keepttl, ok := request.GetArguments()["keepttl"].(bool); ok && keepttl {
 		args = append(args, "KEEPTTL")
 	}
 
-	if get, ok := request.Params.Arguments["get"].(bool); ok && get {
+	if get, ok := request.GetArguments()["get"].(bool); ok && get {
 		args = append(args, "GET")
 	}
 
@@ -107,8 +107,8 @@ func HandleSetTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallT
 		Args: args,
 	})
 
-	if resp.Err != "" {
-		return nil, fmt.Errorf("DiceDB error: %s", resp.Err)
+	if resp.Status == wire.Status_ERR {
+		return nil, fmt.Errorf("DiceDB error: %s", resp.Message)
 	}
 
 	formattedResponse := utils.FormatDiceDBResponse(resp)

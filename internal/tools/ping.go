@@ -29,8 +29,8 @@ func HandlePingTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 	resp := client.Fire(&wire.Command{Cmd: "PING"})
 
 	// Check if DiceDB returned an error
-	if resp.Err != "" {
-		return nil, fmt.Errorf("DiceDB error: %s", resp.Err)
+	if resp.Status == wire.Status_ERR {
+		return nil, fmt.Errorf("DiceDB error: %s", resp.Message)
 	}
 
 	// Return the response to the MCP client

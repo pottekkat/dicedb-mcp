@@ -23,7 +23,7 @@ func NewGetTool() mcp.Tool {
 
 // HandleGetTool handles the GET tool request
 func HandleGetTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	key, ok := request.Params.Arguments["key"].(string)
+	key, ok := request.GetArguments()["key"].(string)
 	if !ok || key == "" {
 		return nil, fmt.Errorf("missing or empty key parameter")
 	}
@@ -39,8 +39,8 @@ func HandleGetTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallT
 	})
 
 	// Check if DiceDB returned an error
-	if resp.Err != "" {
-		return nil, fmt.Errorf("DiceDB error: %s", resp.Err)
+	if resp.Status == wire.Status_ERR {
+		return nil, fmt.Errorf("DiceDB error: %s", resp.Message)
 	}
 
 	value := utils.FormatDiceDBResponse(resp)

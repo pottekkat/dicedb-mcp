@@ -15,6 +15,9 @@ Check out the [demo video](./demo.mov) to see it in action!
 - DEL one or more keys from DiceDB.
 - INCR the integer value of a key by one.
 - DECR the integer value of a key by one.
+- HGET returns the value of field present in the string-string map held at key.
+- HSET sets the field and value for the key in the string-string map.
+- HGETALL returns all the field-value pairs (we call it HElements) from the string-string map stored at key. 
 
 ## Installation
 

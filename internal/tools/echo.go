@@ -23,7 +23,7 @@ func NewEchoTool() mcp.Tool {
 
 // HandleEchoTool handles the echo tool request
 func HandleEchoTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	message, ok := request.Params.Arguments["message"].(string)
+	message, ok := request.GetArguments()["message"].(string)
 	if !ok || message == "" {
 		return nil, fmt.Errorf("missing or empty message parameter")
 	}
@@ -39,8 +39,8 @@ func HandleEchoTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 	})
 
 	// Check if DiceDB returned an error
-	if resp.Err != "" {
-		return nil, fmt.Errorf("DiceDB error: %s", resp.Err)
+	if resp.Status == wire.Status_ERR {
+		return nil, fmt.Errorf("DiceDB error: %s", resp.Message)
 	}
 
 	return mcp.NewToolResultText(fmt.Sprintf("DiceDB echoed: %s", utils.FormatDiceDBResponse(resp))), nil

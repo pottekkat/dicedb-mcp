@@ -38,6 +38,15 @@ func main() {
 	incrTool := tools.NewIncrTool()
 	s.AddTool(incrTool, tools.HandleIncrTool)
 
+	hgetTool := tools.NewHGetTool()
+	s.AddTool(hgetTool, tools.HandleHGetTool)
+
+	hgetall := tools.NewHGetAllTool()
+	s.AddTool(hgetall, tools.HandleHGetAllTool)
+
+	hsetTool := tools.NewHSetTool()
+	s.AddTool(hsetTool, tools.HandleHSetTool)
+
 	// Start the server
 	if err := server.ServeStdio(s); err != nil {
 		fmt.Printf("Error starting server: %v\n", err)
